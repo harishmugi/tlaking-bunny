@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Record, High Pitch Playback, Restart</title>
+  <style>
+    .video {      position: relative;
+all: unset;mix-blend-mode: multiply;
+      width: 40%;height: 100%;LEFT:6%
+    }
+
+    .buttons {
+      position: fixed;
+      top: 75%;
+      left: 40%;z-index: 5;
+      button{background:rgb(0, 255, 0) ;width: 100px;
+height: 100px;
+ border-radius: 10px;      }
+    }
+*{cursor:url(bunny/img/carrot-svgrepo-com.svg),default;
+
+}
+    body {
+      text-align: center;
+    }
+
+    .grass {
+      max-width: 100%;
+      height: 70%;
+      position: fixed;
+      top: 23%;
+      left: 1%;
+      z-index: 1;
+
+    }
+
+    .bounce {
+      
+
+      animation:bounce 3s ; 
+      transition: 2s;
+    }
+
+    @keyframes bounce {
+      0% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-100%);
+        /* Bounce up */
+      }
+
+      100% {
+        transform: translateY(0);
+        /* Bounce up */
+      }
+    }
+    .sneezediv{
+      left: 46%;
+      position: absolute;
+      height: 8%;
+      width: 3%;z-index: 3;
+      top: 51%;}
+.sounds{
+  position: relative;
+}
+.nono
+{    height: 22%;
+  width: 7%;
+  position: absolute;
+  z-index: 3;
+  top: 70%;
+  left: 51%;
+ }    
+ .ear{     width: 10%;
+      height: 23%;
+      /* background: yellow; */
+      z-index: 2;
+      top: 9%;
+      left: 45%;
+      position: absolute;}
+      .gelatine {
+        animation: gelatine 0.3s ;
+      }
+      @keyframes gelatine {
+        from, to { transform: scale(1, 1); }
+        25% { transform: scale(0.9, 1.1); }
+        50% { transform: scale(1.1, 0.9); }
+        75% { transform: scale(0.95, 1.05); }
+      }
+
+
+
+      /* Small devices (phones, 600px and down) */
+@media (max-width: 600px) {
+  /* Styles for small mobile devices */
+    /* max-width: 100%; */
+    .grass{max-width: 200%;height: 38%;
+    position: fixed;
+    top: 36%;
+    left: -19%;
+    /* right: 39%; */
+    z-index: 1;
+    }.sounds{    position: relative;
+      z-index: 4;
+      /* width: 110%; */
+      bottom: -28%; }
+
+
+
+
+
+}
+      
+  </style>
+</head>
+
+<body>
+  <audio id="ear" src="./sounds/mixkit-cartoon-toy-whistle-616.wav   "></audio>
+  <audio id="sneeze" src="./sounds/mixkit-little-child-sneeze-2211.wav"></audio>
+  <audio id="no" src="./sounds/mixkit-cartoon-girl-saying-no-no-no-2257 (2).wav"></audio>
+  <img src="./img/c398ebfc3b3cd60bc2cba3eab84e027c.png " class="grass">
+  <div class="sounds"  ><video src="./img/bunny-speaking.mp4" class="video " loop></video><div class="ear"></div><div class="nono"></div><div class="sneezediv"></div>
+  </div> <div class="buttons"><button id="startBtn">Start </button>
+    <button id="stopBtn" disabled>Stop </button>
+  </div>
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let audioBlob;
+    let audioUrl;
+    let audio;
+    let audioContext;
+    let videoElement = document.querySelector('.video');
+    document.querySelector(".ear").addEventListener("click", () => {
+      videoElement.classList.add("bounce")
+      document.getElementById("ear").play()
+      setTimeout(() => {
+        videoElement.classList.remove("bounce")
+      },3000)
+    })
+    document.querySelector(".sneezediv").addEventListener("click",()=>{
+      document.getElementById("sneeze").play() 
+      videoElement.classList.add("gelatine")
+      setTimeout(()=>{   videoElement.classList.remove("gelatine")},1000)
+  })
+    document.querySelector(".nono").addEventListener("click",()=>{
+        document.getElementById("no").play() 
+    })
+    // Start recording
+    async function startRecording() {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+
+
+
+      // Collect audio chunks
+      mediaRecorder.ondataavailable = event => {
+        audioChunks.push(event.data);
+      };
+
+
+
+
+      // Once recording stops, process the audio and apply pitch shift
+      mediaRecorder.onstop = () => {
+
+        audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        audioUrl = URL.createObjectURL(audioBlob);
+        audio = new Audio(audioUrl);
+        ; // Play the recorded video
+
+        // Apply pitch shift and play the audio
+        applyPitchShift(audioUrl);
+      };
+
+      // Start recording
+      mediaRecorder.start();
+      console.log('Recording started');
+    }
+
+    // Stop recording
+    function stopRecording() {
+      mediaRecorder.stop();
+      console.log('Recording stopped');
+    }
+
+    // Apply pitch shift using Web Audio API (change playback rate)
+    function applyPitchShift(audioUrl) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioContext.createBufferSource();
+
+      // Create an audio buffer from the recorded audio
+      fetch(audioUrl)
+        .then(response => response.arrayBuffer())
+        .then(data => {
+          audioContext.decodeAudioData(data, buffer => {
+            source.buffer = buffer;
+
+            // Adjust the playback rate to increase pitch
+            source.playbackRate.value = 1.4; // Increase the rate for a higher pitch (1.5x pitch)
+
+            // Connect the source to the audio context destination (speakers)
+            source.connect(audioContext.destination);
+
+            // Start the playback
+            source.start();
+            console.log('Playing audio with high pitch');
+            videoElement.play()
+            // Automatically restart recording after the playback
+            source.onended = () => {
+              videoElement.pause()
+              videoElement.currentTime = 0
+              audioChunks = []; // Clear previous recording
+              startRecording(); // Restart recording
+            };
+          });
+        })
+        .catch(error => console.error("Error applying pitch shift:", error));
+    }
+
+    // Button event listeners
+    document.getElementById('startBtn').addEventListener('click', () => {
+      startRecording();
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('stopBtn').disabled = false;
+    });
+
+    document.getElementById('stopBtn').addEventListener('click', () => {
+      stopRecording();
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+    });
+  </script>
+
+</body>
+
+</html>
